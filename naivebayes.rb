@@ -1,12 +1,14 @@
 module NaiveBayes
   module Util
+    # sums up all elements of arr. i.e. returns arr[0] + arr[1] .. + arr[n]
     def sum(arr)
       res = 0
       arr.each{|e| res+=e}
       res
     end
 
-    def mult(arr)
+    # multiplies each element of arr. i.e. returns arr[0] * arr[1] .. * arr[n]
+    def multiply(arr)
       res = 1
       arr.each{|e| res*=e}
       res
@@ -40,28 +42,31 @@ module NaiveBayes
           }
         }
         # calculate prio probability of this class
+        # the formula given in lecture 5.21
+        #                           count(x) + k                /        N             +      k          *   |x| 
         @priors[klass] = (messages.size.to_f + @laplace_factor) / (total_messages.to_f + @laplace_factor * training.keys.size)
       }
       
       # store classes
       @classes = training.keys
     end
-
-    # conditional probability of word, given klass
+    
+    # conditional probability of word given klass, taking into account laplace smoothing factor
     def prob(word, klass)
       (@dict[klass][word] + @laplace_factor) / (@total_words[klass] + @laplace_factor * @global_dict.size)
     end
 
+    # builds the fraction 
     def classify(message)
       res={}
       @classes.each{|klass|
         words = message.split
-        num = mult(words.map{|w| prob(w, klass)}) * @priors[klass]
-        denom = 0.0
-        @classes.each{|kk|
-          denom += mult(words.map{|w| prob(w, kk)}) * @priors[kk]
-        }
-        res[klass] = num/denom
+        # P(word_1) * P(word_2) * ... * P(word_n) * P(klass). i.e. the probability of these words and this particular class
+        numerator = multiply(words.map{|w| prob(w, klass)}) * @priors[klass]
+        # sum over each existing class kk, i.e. calculates the total probability of the words over all classes
+        # P(word_1|kk_1)*P(word_2|kk_1)*...*P(word_n|kk_1) + ... + P(word_1|kk_n)*P(word_2|kk_n)*...*P(word_n|kk_n) 
+        denominator = sum(@classes.map{|kk| multiply(words.map{|w| prob(w, kk)}) * @priors[kk] })
+        res[klass] = numerator/denominator
       }
       res
     end
@@ -75,8 +80,10 @@ if $0==__FILE__
   }
   
   c = NaiveBayes::Classifier.new(training)
-  
+  # debug info
   p c
+  
+  # print the prior probabilities of our two classes
   puts c.prob("today", :spam)
   puts c.prob("today", :ham)
   
